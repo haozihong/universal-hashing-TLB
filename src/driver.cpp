@@ -5,6 +5,7 @@
 
 #include "iceburg_simulator.h"
 #include "universal_hashing_simulator.h"
+#include "conventional_vm_simulator.h"
 #include "vm_simulator.h"
 #include "vm_stats.h"
 
@@ -52,17 +53,19 @@ int main(int argc, char *argv[]) {
     print_err_usage("Could not open the input trace file");
   }
 
-  if (sim_option != 'i' && sim_option != 'u') {
-    print_err_usage("Invalid simulator option");
-  }
-
   std::unique_ptr<VmSimulator> simulator;
 
   if (sim_option == 'i') {
     simulator = std::make_unique<IceburgSimulator>();
   }
-  else {
+  else if (sim_option == 'u') {
     simulator = std::make_unique<UniversalHashingSimulator>(mem_size_mb, bank_count);
+  }
+  else if (sim_option == 'c') {
+    simulator = std::make_unique<ConventionalVmSimulator>(mem_size_mb);
+  }
+  else {
+    print_err_usage("Invalid simulator option");
   }
 
   /* Begin reading the file */

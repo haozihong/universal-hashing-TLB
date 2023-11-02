@@ -1,15 +1,13 @@
 #pragma once
 
 #include "vm_simulator.h"
+#include "constants+helper.h"
 
 #include <cstdio>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 #include "include/xxhash64.h"
-
-constexpr int PAGE_SIZE_KB = 4;
-constexpr int PAGE_SIZE_BITS = 12;
 
 struct PageFrame {
   uint64_t vpn;
@@ -123,11 +121,6 @@ public:
     stats.total_mem_access += 1;
   }
 
-  vm_stats get_stats() override {
-    stats.total_page_access = vpn_set.size();
-    return stats;
-  }
-
 private:
 
   enum Mode {
@@ -149,14 +142,8 @@ private:
     return 0;
   }
 
-  uint64_t get_page_number(uint64_t vpn) {
-    return vpn >> PAGE_SIZE_BITS;
-  }
-
   int bank_count;
   int frame_per_bank;
-
-  std::unordered_set<uint64_t> vpn_set;
 
   std::unordered_map<uint64_t, uint32_t> page_table;
   std::vector<std::vector<PageFrame>> memory;
