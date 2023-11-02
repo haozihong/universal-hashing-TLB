@@ -41,16 +41,15 @@ public:
       indexer = &UniversalHashingSimulator::get_index_in_bank_static;
     }
     else if (sim_mode == DYNAMIC_INDIE_HASH) {
-
+      indexer = &UniversalHashingSimulator::get_index_in_bank_dynamic_indie;
     }
     else if (sim_mode == DYNAMIC_ONE_HASH) {
-      indexer = &UniversalHashingSimulator::get_index_in_bank;
+      indexer = &UniversalHashingSimulator::get_index_in_bank_dynamic;
     }
   }
 
   void access(uint64_t addr, char rw) override {
     uint64_t vpn = get_page_number(addr);
-    auto find_res = page_table.find(vpn);
     vpn_set.insert(vpn);
 
     uint64_t vpn_hashed = 0;
@@ -58,13 +57,14 @@ public:
       vpn_hashed = XXHash64::hash(&vpn, sizeof(vpn), 0);
     }
 
+    auto find_res = page_table.find(vpn);
+
     if (find_res != page_table.end()) {
       // page is in the memory
       uint32_t bank_idx = find_res->second;
       uint32_t frame_idx = (this->*indexer)(vpn, vpn_hashed, bank_idx);
 
       memory[bank_idx][frame_idx].lru_time = time_tick;
-
     }
     else {
       // page is not in the memory, should find a frame for it
@@ -140,9 +140,13 @@ private:
     return vpn % (uint64_t)frame_per_bank;
   }
 
-  uint32_t get_index_in_bank(uint64_t vpn, uint64_t vpn_hashed, int bank_index) {
+  uint32_t get_index_in_bank_dynamic(uint64_t vpn, uint64_t vpn_hashed, int bank_index) {
     uint64_t vpn_bank_mix =  vpn_hashed ^ (uint64_t)bank_index;
     return XXHash64::hash(&vpn_bank_mix, sizeof(vpn_bank_mix), 0) % (uint64_t)frame_per_bank;
+  }
+
+  uint32_t get_index_in_bank_dynamic_indie(uint64_t vpn, uint64_t vpn_hashed, int bank_index) {
+    return 0;
   }
 
   uint64_t get_page_number(uint64_t vpn) {
