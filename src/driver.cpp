@@ -9,7 +9,7 @@
 #include "vm_stats.h"
 
 static void print_err_usage(const std::string& hint);
-static void print_statistics(vm_stats& stats);
+static void print_statistics(const vm_stats& stats);
 
 int main(int argc, char *argv[]) {
 
@@ -17,12 +17,12 @@ int main(int argc, char *argv[]) {
   char sim_option = '0';
   int opt;
 
-  int mem_size_gb = 16;
+  double mem_size_mb = 4096;
   int bank_count = 128;
 
   // t: path to the trace file
   // s: simulator type, i for iceberg or u for universal
-  // m: memory size in GB
+  // m: memory size in mb, can be a decimal
   // b: for universal hashing: number of banks
   while (-1 != (opt = getopt(argc, argv, "t:s:m:b:"))) {
     switch (opt) {
@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
         break;
 
       case 'm':
-        mem_size_gb = std::atoi(optarg);
+        mem_size_mb = std::atof(optarg);
         break;
 
       case 'b':
@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
     simulator = std::make_unique<IceburgSimulator>();
   }
   else {
-    simulator = std::make_unique<UniversalHashingSimulator>();
+    simulator = std::make_unique<UniversalHashingSimulator>(mem_size_mb, bank_count);
   }
 
   /* Begin reading the file */
@@ -70,12 +70,14 @@ int main(int argc, char *argv[]) {
   uint64_t address;
 
   while (!feof(trace)) {
-    int ret = fscanf(trace, "%c 0x%llu\n", &rw, &address);
-    if (ret != 2)
+    if (fscanf(trace, "%c 0x%llx\n", &rw, &address) != 2) {
       continue;
-
+    }
+    
     simulator->access(address, rw);
   }
+
+  print_statistics(simulator->get_stats());
 }
 
 static void print_err_usage(const std::string& hint) {
@@ -85,8 +87,12 @@ static void print_err_usage(const std::string& hint) {
   exit(EXIT_FAILURE);
 }
 
-static void print_statistics(vm_stats& stats) {
+static void print_statistics(const vm_stats& stats) {
   printf("Virtual Memory Statistics\n");
   printf("----------------\n");
   printf("\n");
+  printf("total memory access: %llu\n", stats.total_mem_access);
+  printf("total page access: %llu\n", stats.total_page_access);
+  printf("number of pagefaults: %llu\n", stats.num_page_fault);
+  printf("number of swap: %llu\n", stats.num_swap_out);
 }
