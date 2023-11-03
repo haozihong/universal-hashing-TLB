@@ -133,18 +133,20 @@ private:
     return vpn % (uint64_t)frame_per_bank;
   }
 
+  // f(h(x), bank_index)
   uint32_t get_index_in_bank_dynamic(uint64_t vpn, uint64_t vpn_hashed, int bank_index) {
     uint64_t vpn_bank_mix =  vpn_hashed ^ (uint64_t)bank_index;
     return XXHash64::hash(&vpn_bank_mix, sizeof(vpn_bank_mix), 0) % (uint64_t)frame_per_bank;
   }
 
   uint32_t get_index_in_bank_dynamic_indie(uint64_t vpn, uint64_t vpn_hashed, int bank_index) {
-    return 0;
+    return XXHash64::hash(&vpn, sizeof(vpn), bank_index) % (uint64_t)frame_per_bank;
   }
 
   int bank_count;
   int frame_per_bank;
 
+  // map VPN to CPFN
   std::unordered_map<uint64_t, uint32_t> page_table;
   std::vector<std::vector<PageFrame>> memory;
 

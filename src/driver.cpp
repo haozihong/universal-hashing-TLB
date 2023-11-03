@@ -3,7 +3,7 @@
 #include <memory>
 #include <string>
 
-#include "iceburg_simulator.h"
+#include "iceberg_simulator.h"
 #include "universal_hashing_simulator.h"
 #include "conventional_vm_simulator.h"
 #include "vm_simulator.h"
@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
   std::unique_ptr<VmSimulator> simulator;
 
   if (sim_option == 'i') {
-    simulator = std::make_unique<IceburgSimulator>();
+    simulator = std::make_unique<IcebergSimulator>();
   }
   else if (sim_option == 'u') {
     simulator = std::make_unique<UniversalHashingSimulator>(mem_size_mb, bank_count);
