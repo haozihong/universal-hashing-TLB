@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
   std::unique_ptr<VmSimulator> simulator;
 
   if (sim_option == 'i') {
-    simulator = std::make_unique<IcebergSimulator>();
+    simulator = std::make_unique<IcebergSimulator>(mem_size_mb, 56, 8);
   }
   else if (sim_option == 'u') {
     simulator = std::make_unique<UniversalHashingSimulator>(mem_size_mb, bank_count);

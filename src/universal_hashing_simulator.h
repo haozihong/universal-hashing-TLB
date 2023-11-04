@@ -2,6 +2,7 @@
 
 #include "vm_simulator.h"
 #include "constants+helper.h"
+#include "page_frame.h"
 
 #include <cstdio>
 #include <unordered_map>
@@ -9,11 +10,6 @@
 #include <vector>
 #include "include/xxhash64.h"
 
-struct PageFrame {
-  uint64_t vpn;
-  uint64_t lru_time {0};
-  bool free {true};
-};
 
 class UniversalHashingSimulator : public VmSimulator {
 
@@ -47,6 +43,9 @@ public:
   }
 
   void access(uint64_t addr, char rw) override {
+    time_tick += 1;
+    stats.total_mem_access += 1;
+
     uint64_t vpn = get_page_number(addr);
     vpn_set.insert(vpn);
 
@@ -62,7 +61,7 @@ public:
       uint32_t bank_idx = find_res->second;
       uint32_t frame_idx = (this->*indexer)(vpn, vpn_hashed, bank_idx);
 
-      memory[bank_idx][frame_idx].lru_time = time_tick;
+      memory[bank_idx][frame_idx].timestamp = time_tick;
     }
     else {
       // page is not in the memory, should find a frame for it
@@ -99,8 +98,8 @@ public:
           break;
         }
 
-        if (the_frame.lru_time < min_lru_time) {
-          min_lru_time = the_frame.lru_time;
+        if (the_frame.timestamp < min_lru_time) {
+          min_lru_time = the_frame.timestamp;
           bank_selected = bank;
           frame_selected = &the_frame;
         }
@@ -114,11 +113,8 @@ public:
       page_table[vpn] = bank_selected;
       frame_selected->vpn = vpn;
       frame_selected->free = false;
-      frame_selected->lru_time = time_tick;
+      frame_selected->timestamp = time_tick;
     }
-
-    time_tick += 1;
-    stats.total_mem_access += 1;
   }
 
 private:
