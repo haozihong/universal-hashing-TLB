@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
   while (-1 != (opt = getopt(argc, argv, "t:s:m:b:"))) {
     switch (opt) {
       case 't':
-        trace = std::fopen(optarg, "r");
+        trace = std::fopen(optarg, "rb");
         break;
 
       case 's':
@@ -49,10 +49,6 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if (trace == nullptr) {
-    print_err_usage("Could not open the input trace file");
-  }
-
   std::unique_ptr<VmSimulator> simulator;
 
   if (sim_option == 'i') {
@@ -68,16 +64,30 @@ int main(int argc, char *argv[]) {
     print_err_usage("Invalid simulator option");
   }
 
-  /* Begin reading the file */
+  if (trace == nullptr) {
+    if (feof(stdin)) {
+      print_err_usage("Could not open the input trace file");
+    }
+    else {
+      trace = fdopen(fileno(stdin), "rb");
+    }
+  }
+
   char rw;
   uint64_t address;
+  uint64_t access_cnt = 0;
 
-  while (!feof(trace)) {
-    if (fscanf(trace, "%c 0x%llx\n", &rw, &address) != 2) {
-      continue;
-    }
+  /* Begin reading the file */
+  while (!feof(trace)
+          && fread(&rw, sizeof(char), 1, trace) == 1
+          && fread(&address, sizeof(uint64_t), 1, trace) == 1) {
     
     simulator->access(address, rw);
+
+    access_cnt += 1;
+    if (access_cnt % 1000000 == 0) {
+      print_statistics(simulator->get_stats());
+    }
   }
 
   print_statistics(simulator->get_stats());
@@ -93,9 +103,9 @@ static void print_err_usage(const std::string& hint) {
 static void print_statistics(const vm_stats& stats) {
   printf("Virtual Memory Statistics\n");
   printf("----------------\n");
-  printf("\n");
   printf("total memory access: %llu\n", stats.total_mem_access);
   printf("total page access: %llu\n", stats.total_page_access);
   printf("number of pagefaults: %llu\n", stats.num_page_fault);
   printf("number of swap: %llu\n", stats.num_swap_out);
+  printf("\n");
 }
