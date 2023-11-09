@@ -18,16 +18,18 @@ Available flags
 - `-o [file name]` - Specify the output file. Omit to output to `stdout``.
 - `-binary` - Output the trace in binary stream. Format: access type (I, R, or W) of 1 byte and an address of 8 bytes (without Endian conversion, i.e., the same with the host machine). 
 
-Output to another program using a pipe
+The trace will be output to `fd 3`.
+
+When using a pipe, we need to redirect `fd 3` to `stdout` and `stdout` to `/dev/null`.
 
 ```bash
-pin -t obj-intel64/inst_mem_trace.so -binary -- /bin/ls | ./test_binary_output.py
+pin -t obj-intel64/inst_mem_trace.so -binary -- /bin/ls 3>&1 >&- >/dev/null | ./test_binary_output.py
 ```
 
 Use a intermediate compressed file
 
 ```bash
-pin -t obj-intel64/inst_mem_trace.so -binary -- /bin/ls | xz -T 0 > ls.trace.xz
+pin -t obj-intel64/inst_mem_trace.so -binary -- /bin/ls 3>&1 >&- >/dev/null | xz -T 0 > ls.trace.xz
 xz -dc ls.trace.xz | ./test_binary_output.py
 ```
 

@@ -153,8 +153,9 @@ int main(int argc, char *argv[]) {
     trace = fopen(file_name.c_str(), binary_mode ? "wb" : "w");
   }
   else {
-    // output to stdout by default
-    trace = fdopen(fileno(stdout), binary_mode ? "wb" : "w");
+    // output to fd 3 by default.
+    // output to stdout and stderr all might cause data loss (at least on PACE)
+    trace = fdopen(3, binary_mode ? "wb" : "w");
   }
 
   INS_AddInstrumentFunction(binary_mode ? InstructionBinary : Instruction, 0);
