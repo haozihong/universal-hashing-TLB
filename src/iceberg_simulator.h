@@ -1,9 +1,12 @@
 #pragma once
 
+#include <algorithm>
+#include <vector>
+#include <unordered_map>
 #include <utility>
-#include "constants+helper.h"
 
 #include "include/xxhash64.h"
+#include "constants+helper.h"
 #include "page_frame.h"
 #include "vm_simulator.h"
 
