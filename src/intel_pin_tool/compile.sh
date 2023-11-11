@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+make PIN_ROOT=$HOME/src/pin/pin-3.28-98749-g6643ecee5-gcc-linux obj-intel64/pin_driver.so
