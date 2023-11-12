@@ -10,12 +10,18 @@ struct vm_stats {
   uint64_t num_swap_out {0};
 
   void print() {
-    printf("Virtual Memory Statistics\n");
-    printf("----------------\n");
-    printf("total memory access: %lu\n", total_mem_access);
-    printf("total page access: %lu\n", total_page_access);
-    printf("number of pagefaults: %lu\n", num_page_fault);
-    printf("number of swap: %lu\n", num_swap_out);
-    printf("\n");
+    fprint(stdout);
+  }
+
+  void fprint(FILE *file) {
+    if (file == nullptr) return;
+
+    fprintf(file, "Virtual Memory Statistics\n");
+    fprintf(file, "----------------\n");
+    fprintf(file, "total memory access: %lu\n", total_mem_access);
+    fprintf(file, "total page access: %lu\n", total_page_access);
+    fprintf(file, "number of pagefaults: %lu\n", num_page_fault);
+    fprintf(file, "number of swap: %lu\n", num_swap_out);
+    fprintf(file, "\n");
   }
 };

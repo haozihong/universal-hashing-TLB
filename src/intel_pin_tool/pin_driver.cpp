@@ -17,6 +17,8 @@ using std::string;
 using std::unique_ptr;
 using std::make_unique;
 
+FILE *output = nullptr;
+
 static unique_ptr<VmSimulator> simulator;
 
 static std::unordered_set<string> sim_options {
@@ -28,6 +30,9 @@ static std::unordered_set<string> sim_options {
 /* ===================================================================== */
 // Command line switches
 /* ===================================================================== */
+
+KNOB<string> KnobOutputFileName(KNOB_MODE_WRITEONCE, "pintool", "o", "pin-sim-log.txt",
+                      "output file name");
 
 KNOB<string> KnobSimulatorSel(KNOB_MODE_WRITEONCE, "pintool", "s", "",
                       "which simulator to use (ice, con, uni-static, uni-dyn, uni-dyn-ind)");
@@ -68,7 +73,7 @@ inline void access(VOID *addr, char rw) {
 
   access_cnt += 1;
   if (access_cnt % 1000000 == 0) {
-    simulator->get_stats().print();
+    simulator->get_stats().fprint(output);
   }
 }
 
@@ -123,7 +128,7 @@ VOID Instruction(INS ins, VOID *v) {
  *                              PIN_AddFiniFunction function call
  */
 VOID Fini(INT32 code, VOID *v) {
-  simulator->get_stats().print();
+  simulator->get_stats().fprint(output);
 }
 
 /*!
@@ -135,6 +140,12 @@ int main(int argc, char *argv[]) {
   // in the command line or the command line is invalid
   if (PIN_Init(argc, argv))
     return Usage();
+
+  output = fopen(KnobOutputFileName.Value().c_str(), "w");
+  if (output == nullptr) {
+    fprintf(stderr, "cannot open the output file.\n");
+    exit(EXIT_FAILURE);
+  }
 
   string sim_option = KnobSimulatorSel.Value();
   double mem_size_mb = KnobMemSizeMB.Value();
