@@ -2,6 +2,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <unordered_set>
 
 #include "iceberg_simulator.h"
 #include "universal_hashing_simulator.h"
@@ -12,35 +13,57 @@
 static void print_err_usage(const std::string& hint);
 static void print_statistics(const vm_stats& stats);
 
+static std::unordered_set<std::string> sim_options {
+  "ice", "con", "uni-static", "uni-dyn", "uni-dyn-ind"
+};
+
 int main(int argc, char *argv[]) {
 
   FILE *trace = nullptr;
-  char sim_option = '0';
+  std::string sim_option = "";
   int opt;
 
   double mem_size_mb = 4096;
-  int bank_count = 128;
+  int way_count = 128;
+  int fyard_size = 56;
+  int byard_size = 8;
 
   // t: path to the trace file
-  // s: simulator type, i for iceberg or u for universal
+  // s: simulator type, options are:
+  //        ice: iceberg
+  //        con: conventional
+  //        uni-static: universal (static set-associative)
+  //        uni-dyn: universal (dynamic set-associative)
+  //        uni-dyn-ind: universal (dynamic independent set-associative)
+  //        
   // m: memory size in mb, can be a decimal
-  // b: for universal hashing: number of banks
-  while (-1 != (opt = getopt(argc, argv, "t:s:m:b:"))) {
+  // w: for universal hashing: number of ways(banks)
+  // f: for iceberg hashing: frontyard size
+  // b: for iceberg hashing: backyard size
+  while (-1 != (opt = getopt(argc, argv, "t:s:m:w:f:b:"))) {
     switch (opt) {
       case 't':
         trace = std::fopen(optarg, "rb");
         break;
 
       case 's':
-        sim_option = optarg[0];
+        sim_option = std::string(optarg);
         break;
 
       case 'm':
         mem_size_mb = std::atof(optarg);
         break;
 
+      case 'w':
+        way_count = std::atoi(optarg);
+        break;
+      
+      case 'f':
+        fyard_size = std::atoi(optarg);
+        break;
+
       case 'b':
-        bank_count = std::atoi(optarg);
+        byard_size = std::atoi(optarg);
         break;
 
       default:
@@ -51,14 +74,14 @@ int main(int argc, char *argv[]) {
 
   std::unique_ptr<VmSimulator> simulator;
 
-  if (sim_option == 'i') {
-    simulator = std::make_unique<IcebergSimulator>(mem_size_mb, 56, 8);
+  if (sim_option == "ice") {
+    simulator = std::make_unique<IcebergSimulator>(mem_size_mb, fyard_size, byard_size);
   }
-  else if (sim_option == 'u') {
-    simulator = std::make_unique<UniversalHashingSimulator>(mem_size_mb, bank_count);
-  }
-  else if (sim_option == 'c') {
+  else if (sim_option == "con") {
     simulator = std::make_unique<ConventionalVmSimulator>(mem_size_mb);
+  }
+  else if (sim_options.count(sim_option) == 1) {
+    simulator = std::make_unique<UniversalHashingSimulator>(mem_size_mb, way_count, sim_option);
   }
   else {
     print_err_usage("Invalid simulator option");

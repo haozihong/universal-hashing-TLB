@@ -13,15 +13,33 @@
 
 class UniversalHashingSimulator : public VmSimulator {
 
+enum Mode {
+  STATIC,
+  DYNAMIC_INDIE_HASH,
+  DYNAMIC_ONE_HASH,
+};
+
 // function pointer to the function that is used to hash the VPN
 using Indexer = uint32_t(UniversalHashingSimulator::*)(uint64_t, uint64_t, int);
 
+inline static std::unordered_map<std::string, Mode> options_map {
+  { "uni-static", STATIC },
+  { "uni-dyn", DYNAMIC_ONE_HASH},
+  { "uni-dyn-ind", DYNAMIC_INDIE_HASH },
+};
+
 public:
-  UniversalHashingSimulator(double mem_size_mb, int bank_count): bank_count(bank_count) {
+  UniversalHashingSimulator(double mem_size_mb, int bank_count, const std::string& mode)
+      : bank_count(bank_count) {
+
+    if (options_map.count(mode) == 1) {
+      sim_mode = options_map[mode];
+    }
 
     frame_per_bank = mem_size_mb * 1024 / PAGE_SIZE_KB / bank_count;
 
     printf("Universal Hashing Simulator initializing, \n");
+    printf("sim_mode = %s\n", mode.c_str());
     printf("bank_count = %d\n", bank_count);
     printf("frame_per_bank = %d\n", frame_per_bank);
 
@@ -118,12 +136,6 @@ public:
   }
 
 private:
-
-  enum Mode {
-    STATIC,
-    DYNAMIC_INDIE_HASH,
-    DYNAMIC_ONE_HASH,
-  };
 
   uint32_t get_index_in_bank_static(uint64_t vpn, uint64_t vpn_hashed, int bank_index) {
     return vpn % (uint64_t)frame_per_bank;
