@@ -3,23 +3,46 @@
 #include <fstream>
 #include <iostream>
 #include <stdio.h>
+#include <unordered_set>
 
 #include "../iceberg_simulator.h"
+#include "../universal_hashing_simulator.h"
+#include "../conventional_vm_simulator.h"
+#include "../vm_simulator.h"
+#include "../vm_stats.h"
 
 using std::cerr, std::cout;
 using std::endl;
 using std::string;
+using std::unique_ptr;
+using std::make_unique;
 
-FILE *trace = NULL;
+static unique_ptr<VmSimulator> simulator;
+
+static std::unordered_set<string> sim_options {
+  "ice", "con", "uni-static", "uni-dyn", "uni-dyn-ind"
+};
+
+ static uint64_t access_cnt = 0;
 
 /* ===================================================================== */
 // Command line switches
 /* ===================================================================== */
-KNOB<string> KnobOutputFile(KNOB_MODE_WRITEONCE, "pintool", "o", "",
-                            "specify file name for output");
 
-KNOB<BOOL> KnobBinary(KNOB_MODE_WRITEONCE, "pintool", "binary", "0",
-                      "whether output in binary form");
+KNOB<string> KnobSimulatorSel(KNOB_MODE_WRITEONCE, "pintool", "s", "",
+                      "which simulator to use (ice, con, uni-static, uni-dyn, uni-dyn-ind)");
+
+KNOB<double> KnobMemSizeMB(KNOB_MODE_WRITEONCE, "pintool", "m", "128.0",
+                      "memory size in mb, can be a decimal");
+
+KNOB<int> KnobWayCount(KNOB_MODE_WRITEONCE, "pintool", "w", "32",
+                      "for universal hashing: number of ways(banks)");
+
+KNOB<int> KnobFrontyardSize(KNOB_MODE_WRITEONCE, "pintool", "f", "56",
+                      "for iceberg hashing: frontyard size");
+
+KNOB<int> KnobBackyardSize(KNOB_MODE_WRITEONCE, "pintool", "b", "8",
+                      "for iceberg hashing: backyard size");
 
 /* ===================================================================== */
 // Utilities
@@ -40,19 +63,28 @@ INT32 Usage() {
 // Instrumentation callbacks
 /* ===================================================================== */
 
+inline void access(VOID *addr, char rw) {
+  simulator->access((uint64_t)addr, rw);
+
+  access_cnt += 1;
+  if (access_cnt % 1000000 == 0) {
+    simulator->get_stats().print();
+  }
+}
+
 // Print a instruction
 VOID RecordInst(VOID *addr) {
-  fprintf(trace, "I %p\n", addr);
+  access(addr, 'r');
 }
 
 // Print a memory read record
 VOID RecordMemRead(VOID *ip, VOID *addr) {
-  fprintf(trace, "R %p\n", addr);
+  access(addr, 'r');
 }
 
 // Print a memory write record
 VOID RecordMemWrite(VOID *ip, VOID *addr) {
-  fprintf(trace, "W %p\n", addr);
+  access(addr, 'w');
 }
 
 // Is called for every instruction and instruments reads and writes
@@ -83,52 +115,6 @@ VOID Instruction(INS ins, VOID *v) {
   }
 }
 
-// Print a instruction
-VOID RecordInstBinary(VOID *addr) {
-  putc('I', trace);
-  fwrite(&addr, sizeof(VOID *), 1, trace);
-}
-
-// Print a memory read record
-VOID RecordMemReadBinary(VOID *ip, VOID *addr) {
-  putc('R', trace);
-  fwrite(&addr, sizeof(VOID *), 1, trace);
-}
-
-// Print a memory write record
-VOID RecordMemWriteBinary(VOID *ip, VOID *addr) {
-  putc('W', trace);
-  fwrite(&addr, sizeof(VOID *), 1, trace);
-}
-
-// Is called for every instruction and instruments reads and writes
-VOID InstructionBinary(INS ins, VOID *v) {
-  // Insert a call to printip before every instruction, and pass it the IP
-  INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordInstBinary, IARG_INST_PTR, IARG_END);
-
-  // Instruments memory accesses using a predicated call, i.e.
-  // the instrumentation is called iff the instruction will actually be executed.
-  //
-  // On the IA-32 and Intel(R) 64 architectures conditional moves and REP
-  // prefixed instructions appear as predicated instructions in Pin.
-  UINT32 memOperands = INS_MemoryOperandCount(ins);
-
-  // Iterate over each memory operand of the instruction.
-  for (UINT32 memOp = 0; memOp < memOperands; memOp++) {
-    if (INS_MemoryOperandIsRead(ins, memOp)) {
-      INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordMemReadBinary, IARG_INST_PTR,
-                               IARG_MEMORYOP_EA, memOp, IARG_END);
-    }
-    // Note that in some architectures a single memory operand can be
-    // both read and written (for instance incl (%eax) on IA-32)
-    // In that case we instrument it once for read and once for write.
-    if (INS_MemoryOperandIsWritten(ins, memOp)) {
-      INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordMemWriteBinary, IARG_INST_PTR,
-                               IARG_MEMORYOP_EA, memOp, IARG_END);
-    }
-  }
-}
-
 /*!
  * Print out analysis results.
  * This function is called when the application exits.
@@ -137,7 +123,7 @@ VOID InstructionBinary(INS ins, VOID *v) {
  *                              PIN_AddFiniFunction function call
  */
 VOID Fini(INT32 code, VOID *v) {
-  fclose(trace);
+  simulator->get_stats().print();
 }
 
 /*!
@@ -150,22 +136,27 @@ int main(int argc, char *argv[]) {
   if (PIN_Init(argc, argv))
     return Usage();
 
-  auto binary_mode = KnobBinary.Value();
+  string sim_option = KnobSimulatorSel.Value();
+  double mem_size_mb = KnobMemSizeMB.Value();
+  int way_count = KnobWayCount.Value();
+  int fyard_size = KnobFrontyardSize.Value();
+  int byard_size = KnobBackyardSize.Value();
 
-  string file_name = KnobOutputFile.Value();
-  if (!file_name.empty()) {
-    trace = fopen(file_name.c_str(), binary_mode ? "wb" : "w");
+  if (sim_option == "ice") {
+    simulator = make_unique<IcebergSimulator>(mem_size_mb, fyard_size, byard_size);
+  }
+  else if (sim_option == "con") {
+    simulator = make_unique<ConventionalVmSimulator>(mem_size_mb);
+  }
+  else if (sim_options.count(sim_option) == 1) {
+    simulator = make_unique<UniversalHashingSimulator>(mem_size_mb, way_count, sim_option);
   }
   else {
-    // output to fd 3 by default.
-    // output to stdout and stderr all might cause data loss (at least on PACE)
-    trace = fdopen(3, binary_mode ? "wb" : "w");
+    fprintf(stderr, "unknown simulator option.\n");
+    exit(EXIT_FAILURE);
   }
 
-  auto simulator = std::make_unique<IcebergSimulator>(256, 56, 8);
-  simulator->access(123, 'I');
-
-  INS_AddInstrumentFunction(binary_mode ? InstructionBinary : Instruction, 0);
+  INS_AddInstrumentFunction(Instruction, 0);
   PIN_AddFiniFunction(Fini, 0);
 
   // Start the program, never returns

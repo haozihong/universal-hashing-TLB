@@ -11,7 +11,6 @@
 #include "vm_stats.h"
 
 static void print_err_usage(const std::string& hint);
-static void print_statistics(const vm_stats& stats);
 
 static std::unordered_set<std::string> sim_options {
   "ice", "con", "uni-static", "uni-dyn", "uni-dyn-ind"
@@ -109,11 +108,11 @@ int main(int argc, char *argv[]) {
 
     access_cnt += 1;
     if (access_cnt % 1000000 == 0) {
-      print_statistics(simulator->get_stats());
+      simulator->get_stats().print();
     }
   }
 
-  print_statistics(simulator->get_stats());
+  simulator->get_stats().print();
 }
 
 static void print_err_usage(const std::string& hint) {
@@ -121,14 +120,4 @@ static void print_err_usage(const std::string& hint) {
   std::cout << "usage:\n";
   std::cout << "./tlbsim -t <path-to-trace-file> -s <simulator, i or u >\n";
   exit(EXIT_FAILURE);
-}
-
-static void print_statistics(const vm_stats& stats) {
-  printf("Virtual Memory Statistics\n");
-  printf("----------------\n");
-  printf("total memory access: %llu\n", stats.total_mem_access);
-  printf("total page access: %llu\n", stats.total_page_access);
-  printf("number of pagefaults: %llu\n", stats.num_page_fault);
-  printf("number of swap: %llu\n", stats.num_swap_out);
-  printf("\n");
 }

@@ -14,18 +14,18 @@
 class UniversalHashingSimulator : public VmSimulator {
 
 enum Mode {
-  STATIC,
-  DYNAMIC_INDIE_HASH,
-  DYNAMIC_ONE_HASH,
+  M_STATIC,
+  M_DYNAMIC_INDIE_HASH,
+  M_DYNAMIC_ONE_HASH,
 };
 
 // function pointer to the function that is used to hash the VPN
 using Indexer = uint32_t(UniversalHashingSimulator::*)(uint64_t, uint64_t, int);
 
 inline static std::unordered_map<std::string, Mode> options_map {
-  { "uni-static", STATIC },
-  { "uni-dyn", DYNAMIC_ONE_HASH},
-  { "uni-dyn-ind", DYNAMIC_INDIE_HASH },
+  { "uni-static", M_STATIC },
+  { "uni-dyn", M_DYNAMIC_ONE_HASH},
+  { "uni-dyn-ind", M_DYNAMIC_INDIE_HASH },
 };
 
 public:
@@ -49,13 +49,13 @@ public:
     }
 
     // Select a hash function according to the hash strategy
-    if (sim_mode == STATIC) {
+    if (sim_mode == M_STATIC) {
       indexer = &UniversalHashingSimulator::get_index_in_bank_static;
     }
-    else if (sim_mode == DYNAMIC_INDIE_HASH) {
+    else if (sim_mode == M_DYNAMIC_INDIE_HASH) {
       indexer = &UniversalHashingSimulator::get_index_in_bank_dynamic_indie;
     }
-    else if (sim_mode == DYNAMIC_ONE_HASH) {
+    else if (sim_mode == M_DYNAMIC_ONE_HASH) {
       indexer = &UniversalHashingSimulator::get_index_in_bank_dynamic;
     }
   }
@@ -68,7 +68,7 @@ public:
     vpn_set.insert(vpn);
 
     uint64_t vpn_hashed = 0;
-    if (sim_mode == DYNAMIC_ONE_HASH) {
+    if (sim_mode == M_DYNAMIC_ONE_HASH) {
       vpn_hashed = XXHash64::hash(&vpn, sizeof(vpn), 0);
     }
 
@@ -158,7 +158,7 @@ private:
   std::unordered_map<uint64_t, uint32_t> page_table;
   std::vector<std::vector<PageFrame>> memory;
 
-  Mode sim_mode {Mode::DYNAMIC_ONE_HASH};
+  Mode sim_mode {Mode::M_DYNAMIC_ONE_HASH};
   Indexer indexer {nullptr};
 
   uint64_t time_tick {0};
