@@ -13,15 +13,33 @@
 
 class UniversalHashingSimulator : public VmSimulator {
 
+enum Mode {
+  M_STATIC,
+  M_DYNAMIC_INDIE_HASH,
+  M_DYNAMIC_ONE_HASH,
+};
+
 // function pointer to the function that is used to hash the VPN
 using Indexer = uint32_t(UniversalHashingSimulator::*)(uint64_t, uint64_t, int);
 
+inline static std::unordered_map<std::string, Mode> options_map {
+  { "uni-static", M_STATIC },
+  { "uni-dyn", M_DYNAMIC_ONE_HASH},
+  { "uni-dyn-ind", M_DYNAMIC_INDIE_HASH },
+};
+
 public:
-  UniversalHashingSimulator(double mem_size_mb, int bank_count): bank_count(bank_count) {
+  UniversalHashingSimulator(double mem_size_mb, int bank_count, const std::string& mode)
+      : bank_count(bank_count) {
+
+    if (options_map.count(mode) == 1) {
+      sim_mode = options_map[mode];
+    }
 
     frame_per_bank = mem_size_mb * 1024 / PAGE_SIZE_KB / bank_count;
 
     printf("Universal Hashing Simulator initializing, \n");
+    printf("sim_mode = %s\n", mode.c_str());
     printf("bank_count = %d\n", bank_count);
     printf("frame_per_bank = %d\n", frame_per_bank);
 
@@ -31,13 +49,13 @@ public:
     }
 
     // Select a hash function according to the hash strategy
-    if (sim_mode == STATIC) {
+    if (sim_mode == M_STATIC) {
       indexer = &UniversalHashingSimulator::get_index_in_bank_static;
     }
-    else if (sim_mode == DYNAMIC_INDIE_HASH) {
+    else if (sim_mode == M_DYNAMIC_INDIE_HASH) {
       indexer = &UniversalHashingSimulator::get_index_in_bank_dynamic_indie;
     }
-    else if (sim_mode == DYNAMIC_ONE_HASH) {
+    else if (sim_mode == M_DYNAMIC_ONE_HASH) {
       indexer = &UniversalHashingSimulator::get_index_in_bank_dynamic;
     }
   }
@@ -50,7 +68,7 @@ public:
     vpn_set.insert(vpn);
 
     uint64_t vpn_hashed = 0;
-    if (sim_mode == DYNAMIC_ONE_HASH) {
+    if (sim_mode == M_DYNAMIC_ONE_HASH) {
       vpn_hashed = XXHash64::hash(&vpn, sizeof(vpn), 0);
     }
 
@@ -119,12 +137,6 @@ public:
 
 private:
 
-  enum Mode {
-    STATIC,
-    DYNAMIC_INDIE_HASH,
-    DYNAMIC_ONE_HASH,
-  };
-
   uint32_t get_index_in_bank_static(uint64_t vpn, uint64_t vpn_hashed, int bank_index) {
     return vpn % (uint64_t)frame_per_bank;
   }
@@ -146,7 +158,7 @@ private:
   std::unordered_map<uint64_t, uint32_t> page_table;
   std::vector<std::vector<PageFrame>> memory;
 
-  Mode sim_mode {Mode::DYNAMIC_ONE_HASH};
+  Mode sim_mode {Mode::M_DYNAMIC_ONE_HASH};
   Indexer indexer {nullptr};
 
   uint64_t time_tick {0};

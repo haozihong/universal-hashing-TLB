@@ -141,11 +141,11 @@ private:
     }
     else {
       int oldest_candi_id = 0, oldest_offset = 0;
-      for (int i = 0; i < byard_candi.size(); i++) {
+      for (size_t i = 0; i < byard_candi.size(); i++) {
         for (int j = 0; j < byard_size; j++) {
           if (memory_byard[byard_candi[i]][j].timestamp <
               memory_byard[byard_candi[oldest_candi_id]][oldest_offset].timestamp) {
-            oldest_candi_id = i;
+            oldest_candi_id = (int)i;
             oldest_offset = j;
           }
         }
@@ -157,7 +157,7 @@ private:
 
   PageFrame *find_frame(uint64_t vpn, uint32_t cpfn) {
     // if frame in front yard
-    if (cpfn < fyard_size) {
+    if ((int)cpfn < fyard_size) {
       int idx = iceberg_hash(vpn, 0) % fyard_size;
       return &memory_fyard[idx][cpfn];
     }
