@@ -1,6 +1,8 @@
 #pragma once
 
 #include <algorithm>
+#include <cstdlib>
+#include <tuple>
 #include <vector>
 #include <unordered_map>
 #include <utility>
@@ -10,18 +12,16 @@
 #include "page_frame.h"
 #include "vm_simulator.h"
 
-// using namespace std;
-
 class IcebergSimulator : public VmSimulator {
 public:
   IcebergSimulator(double mem_size_mb, int frontyard_size, int backyard_size)
       : fyard_size(frontyard_size), byard_size(backyard_size),
         yard_num(mem_size_mb * 1024 / PAGE_SIZE_KB / (frontyard_size + backyard_size)),
-        memory_fyard(yard_num), memory_byard(yard_num), byard_avail(yard_num, byard_size) {
-    for (auto& yard : memory_fyard) {
+        mem_fyards(yard_num), mem_byards(yard_num), byard_avail(yard_num, backyard_size) {
+    for (auto& yard : mem_fyards) {
       yard.resize(fyard_size);
     }
-    for (auto& yard : memory_byard) {
+    for (auto& yard : mem_byards) {
       yard.resize(byard_size);
     }
   }
@@ -54,10 +54,11 @@ public:
         victim_cpfn = fyard_cpfn;
         break;
       }
-      auto [byard_frame, byard_cpfn] = pick_from_backyards(vpn);
+      auto [byard_frame, byard_cpfn, byard_idx] = pick_from_backyards(vpn);
       if (byard_frame->free) {
         victim_frame = byard_frame;
         victim_cpfn = byard_cpfn;
+        byard_avail[byard_idx]--;
         break;
       }
 
@@ -85,17 +86,15 @@ public:
 private:
   uint64_t time_tick {0};
 
-  double mem_size_mb;
-
-  int fyard_size;
-  int byard_size;
+  size_t fyard_size;
+  size_t byard_size;
   int yard_num;
   int byard_candi_num = 6;
 
     // map VPN to CPFN
   std::unordered_map<uint64_t, uint32_t> page_table;
-  std::vector<std::vector<PageFrame>> memory_fyard;
-  std::vector<std::vector<PageFrame>> memory_byard;
+  std::vector<std::vector<PageFrame>> mem_fyards;
+  std::vector<std::vector<PageFrame>> mem_byards;
   std::vector<int> byard_avail;
 
   uint64_t iceberg_hash(uint64_t vpn, int hash_index) {
@@ -104,75 +103,82 @@ private:
 
   // Returns the first free page in the frontyard.
   // Otherwise return the frame with oldest timestamp.
+  // Returns <PageFrame*, CPFN>
   std::pair<PageFrame*, uint32_t> pick_from_frontyard(uint64_t vpn) {
-    int fyard_id = iceberg_hash(vpn, 0) % fyard_size;
-    for (int j = 0; j < fyard_size; j++) {
-      if (memory_fyard[fyard_id][j].free) {
-        return {&memory_fyard[fyard_id][j], j};
+    int fyard_id = iceberg_hash(vpn, 0) % yard_num;
+    for (size_t j = 0; j < fyard_size; j++) {
+      if (mem_fyards[fyard_id][j].free) {
+        return {&mem_fyards[fyard_id][j], j};
       }
     }
-    auto it = min_element(memory_fyard[fyard_id].begin(), memory_fyard[fyard_id].end(),
+    auto it = min_element(mem_fyards[fyard_id].begin(), mem_fyards[fyard_id].end(),
                           [](auto& f1, auto& f2) { return f1.timestamp < f2.timestamp; });
-    return {&*it, it - memory_fyard[fyard_id].begin()};
+    return {&*it, it - mem_fyards[fyard_id].begin()};
   }
   
   // Returns the first free page in the most vacant backyard.
   // Otherwise return the frame with oldest timestamp.
-  std::pair<PageFrame*, uint32_t> pick_from_backyards(uint64_t vpn) {
+  // Returns <PageFrame*, CPFN, backyard index>
+  std::tuple<PageFrame*, uint32_t, size_t> pick_from_backyards(uint64_t vpn) {
     std::vector<uint64_t> byard_candi;
-    int max_avail_bucket_index = -1;
+    for (int i = 0; i < byard_candi_num; i++) {
+      byard_candi.push_back(iceberg_hash(vpn, i + 1) % yard_num);
+    }
+    int max_avail_candi_index = -1;
     int max_avail_bucket_size = 0;
-    for (int j = 0; j < byard_candi_num; j++) {
-      byard_candi.push_back(iceberg_hash(vpn, j + 1) % byard_size);
-      if (max_avail_bucket_size < byard_avail[j]) {
-        max_avail_bucket_index = j;
-        max_avail_bucket_size = byard_avail[j];
+    for (int i = 0; i < byard_candi_num; i++) {
+      auto byard_idx = byard_candi[i];
+      if (max_avail_bucket_size < byard_avail[byard_idx]) {
+        max_avail_candi_index = i;
+        max_avail_bucket_size = byard_avail[byard_idx];
       }
     }
     if (max_avail_bucket_size > 0) {
-      // find free frame
-      for (int j = 0; j < byard_size; j++) {
-        if (memory_byard[max_avail_bucket_index][j].free) {
-          return {&memory_byard[max_avail_bucket_index][j], j};
+      // search for a free frame
+      auto byard_idx = byard_candi[max_avail_candi_index];
+      for (size_t i = 0; i < byard_size; i++) {
+        if (mem_byards[byard_idx][i].free) {
+          return {&mem_byards[byard_idx][i], fyard_size + max_avail_candi_index * byard_size + i, byard_idx};
         }
       }
 
-      return {nullptr, 0};
+      // should never reach here
+      std::exit(EXIT_FAILURE);
     }
     else {
-      int oldest_candi_id = 0, oldest_offset = 0;
+      size_t oldest_candi_id = 0, oldest_offset = 0;
       for (size_t i = 0; i < byard_candi.size(); i++) {
-        for (int j = 0; j < byard_size; j++) {
-          if (memory_byard[byard_candi[i]][j].timestamp <
-              memory_byard[byard_candi[oldest_candi_id]][oldest_offset].timestamp) {
-            oldest_candi_id = (int)i;
+        for (size_t j = 0; j < byard_size; j++) {
+          if (mem_byards[byard_candi[i]][j].timestamp <
+              mem_byards[byard_candi[oldest_candi_id]][oldest_offset].timestamp) {
+            oldest_candi_id = i;
             oldest_offset = j;
           }
         }
       }
-      return {&memory_byard[byard_candi[oldest_candi_id]][oldest_offset],
-              byard_size + oldest_candi_id * byard_size + oldest_offset};
+      return {&mem_byards[byard_candi[oldest_candi_id]][oldest_offset],
+              fyard_size + oldest_candi_id * byard_size + oldest_offset,
+              byard_candi[oldest_candi_id]};
     }
   }
 
   PageFrame *find_frame(uint64_t vpn, uint32_t cpfn) {
     // if frame in front yard
-    if ((int)cpfn < fyard_size) {
+    if (cpfn < fyard_size) {
       int idx = iceberg_hash(vpn, 0) % fyard_size;
-      return &memory_fyard[idx][cpfn];
+      return &mem_fyards[idx][cpfn];
     }
     else {
       std::vector<uint64_t> byard_candi;
-      for (int j = 0; j < byard_candi_num; j++) {
-        byard_candi.push_back(iceberg_hash(vpn, j + 1) % byard_size);
+      for (int i = 0; i < byard_candi_num; i++) {
+        byard_candi.push_back(iceberg_hash(vpn, i + 1) % yard_num);
       }
-      int byard_index = (cpfn - fyard_size) / byard_size;
+      int candi_index = (cpfn - fyard_size) / byard_size;
       int byard_offset = (cpfn - fyard_size) % byard_size;
-      return &memory_byard[byard_candi[byard_index]][byard_offset];
+      return &mem_byards[byard_candi[candi_index]][byard_offset];
     }
 
-    return nullptr;  // placeholder
+    // should never reach here
+    std::exit(EXIT_FAILURE);
   }
-
-
 };
