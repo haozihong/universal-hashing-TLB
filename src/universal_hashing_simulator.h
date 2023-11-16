@@ -39,6 +39,7 @@ public:
     frame_per_bank = mem_size_mb * 1024 / PAGE_SIZE_KB / bank_count;
 
     printf("Universal Hashing Simulator initializing, \n");
+    printf("----------------\n");
     printf("sim_mode = %s\n", mode.c_str());
     printf("bank_count = %d\n", bank_count);
     printf("frame_per_bank = %d\n", frame_per_bank);
@@ -125,6 +126,7 @@ public:
 
       if (need_evict) {
         stats.num_swap_out += 1;
+        stats.total_age_of_swapped_out_pages += time_tick - frame_selected->timestamp;
         page_table.erase(frame_selected->vpn);
       }
 

@@ -64,7 +64,7 @@ public:
 
       // if no free frame
       stats.num_swap_out += 1;
-
+        
       if (fyard_frame->timestamp < byard_frame->timestamp) {
         victim_frame = fyard_frame;
         victim_cpfn = fyard_cpfn;
@@ -75,6 +75,10 @@ public:
       }
     } while(0);
 
+    // eviction process
+    if (!victim_frame->free) {
+      stats.total_age_of_swapped_out_pages += time_tick - victim_frame->timestamp;
+    }
     page_table.erase(victim_frame->vpn);
 
     page_table[vpn] = victim_cpfn;
