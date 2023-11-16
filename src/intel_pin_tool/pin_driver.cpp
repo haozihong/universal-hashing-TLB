@@ -72,7 +72,7 @@ inline void access(VOID *addr, char rw) {
   simulator->access((uint64_t)addr, rw);
 
   access_cnt += 1;
-  if (access_cnt % 1000000 == 0) {
+  if (access_cnt % 100000000 == 0) {
     simulator->get_stats().fprint(output);
   }
 }
