@@ -8,8 +8,10 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include "include/xxhash64.h"
 
+#define XXH_STATIC_LINKING_ONLY // should keep this marco for xxhash
+#define XXH_IMPLEMENTATION      // should keep this marco for xxhash
+#include "include/xxhash.h"
 
 class UniversalHashingSimulator : public VmSimulator {
 
@@ -70,7 +72,7 @@ public:
 
     uint64_t vpn_hashed = 0;
     if (sim_mode == M_DYNAMIC_ONE_HASH) {
-      vpn_hashed = XXHash64::hash(&vpn, sizeof(vpn), 0);
+      vpn_hashed = XXH64(&vpn, sizeof(vpn), 0);
     }
 
     auto find_res = page_table.find(vpn);
@@ -146,11 +148,11 @@ private:
   // f(h(x), bank_index)
   uint32_t get_index_in_bank_dynamic(uint64_t vpn, uint64_t vpn_hashed, int bank_index) {
     uint64_t vpn_bank_mix =  vpn_hashed ^ (uint64_t)bank_index;
-    return XXHash64::hash(&vpn_bank_mix, sizeof(vpn_bank_mix), 0) % (uint64_t)frame_per_bank;
+    return XXH64(&vpn_bank_mix, sizeof(vpn_bank_mix), 0) % (uint64_t)frame_per_bank;
   }
 
   uint32_t get_index_in_bank_dynamic_indie(uint64_t vpn, uint64_t vpn_hashed, int bank_index) {
-    return XXHash64::hash(&vpn, sizeof(vpn), bank_index) % (uint64_t)frame_per_bank;
+    return XXH64(&vpn, sizeof(vpn), bank_index) % (uint64_t)frame_per_bank;
   }
 
   int bank_count;

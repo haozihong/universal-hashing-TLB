@@ -7,10 +7,13 @@
 #include <unordered_map>
 #include <utility>
 
-#include "include/xxhash64.h"
 #include "constants+helper.h"
 #include "page_frame.h"
 #include "vm_simulator.h"
+
+#define XXH_STATIC_LINKING_ONLY // should keep this marco for xxhash
+#define XXH_IMPLEMENTATION      // should keep this marco for xxhash
+#include "include/xxhash.h"
 
 class IcebergSimulator : public VmSimulator {
 public:
@@ -105,7 +108,7 @@ private:
   std::vector<uint64_t> byard_candi;
 
   uint64_t iceberg_hash(uint64_t vpn, int hash_index) {
-    return XXHash64::hash(&vpn, sizeof(vpn), hash_index); 
+    return XXH64(&vpn, sizeof(vpn), hash_index); 
   }
 
   // Returns the first free page in the frontyard.
