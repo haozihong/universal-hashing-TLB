@@ -67,6 +67,12 @@ public:
       }
 
       // if no free frame
+      // If it's the first swap, record memory utilization
+      if (stats.num_swap_out == 0) {
+        size_t page_cnt = vpn_set.size();
+        size_t total_frame_cnt = yard_num * (fyard_size + byard_size);
+        stats.mem_util_pct = (double)page_cnt / total_frame_cnt;
+      }
       stats.num_swap_out += 1;
         
       if (fyard_frame->timestamp < byard_frame->timestamp) {
@@ -77,12 +83,11 @@ public:
         victim_frame = byard_frame;
         victim_cpfn = byard_cpfn;
       }
+      stats.total_age_of_swapped_out_pages += time_tick - victim_frame->timestamp;
+
     } while(0);
 
     // eviction process
-    if (!victim_frame->free) {
-      stats.total_age_of_swapped_out_pages += time_tick - victim_frame->timestamp;
-    }
     page_table.erase(victim_frame->vpn);
 
     page_table[vpn] = victim_cpfn;

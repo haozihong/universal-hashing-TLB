@@ -127,6 +127,10 @@ public:
       }
 
       if (need_evict) {
+        // If it's the first swap, record memory utilization
+        if (stats.num_swap_out == 0) {
+          stats.mem_util_pct = (double)vpn_set.size() / (bank_count * frame_per_bank);
+        }
         stats.num_swap_out += 1;
         stats.total_age_of_swapped_out_pages += time_tick - frame_selected->timestamp;
         page_table.erase(frame_selected->vpn);

@@ -27,9 +27,10 @@ struct vm_stats {
     fprintf(file, "total page access: %lu\n", total_page_access);
     fprintf(file, "number of pagefaults: %lu\n", num_page_fault);
     fprintf(file, "number of swap: %lu\n", num_swap_out);
-    // fprintf(file, "total age of swapped out pages: %lu\n", total_age_of_swapped_out_pages);
     if (num_swap_out != 0) {
-      fprintf(file, "average age of swapped out pages: %ld\n", total_age_of_swapped_out_pages / num_swap_out);
+      fprintf(file, "first swap memory utilization: %lf\n", mem_util_pct);
+      fprintf(file, "total age of swapped out pages: %lu\n", total_age_of_swapped_out_pages);
+      fprintf(file, "average age of swapped out pages: %lu\n", total_age_of_swapped_out_pages / num_swap_out);
     }
     fprintf(file, "\n");
   }
