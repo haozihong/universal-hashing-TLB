@@ -17,7 +17,8 @@ public:
   IcebergSimulator(double mem_size_mb, int frontyard_size, int backyard_size)
       : fyard_size(frontyard_size), byard_size(backyard_size),
         yard_num(mem_size_mb * 1024 / PAGE_SIZE_KB / (frontyard_size + backyard_size)),
-        mem_fyards(yard_num), mem_byards(yard_num), byard_avail(yard_num, backyard_size) {
+        mem_fyards(yard_num), mem_byards(yard_num), byard_avail(yard_num, backyard_size),
+        byard_candi(byard_candi_num) {
     for (auto& yard : mem_fyards) {
       yard.resize(fyard_size);
     }
@@ -93,13 +94,15 @@ private:
   size_t fyard_size;
   size_t byard_size;
   int yard_num;
-  int byard_candi_num = 6;
+  static constexpr int byard_candi_num = 6;
 
     // map VPN to CPFN
   std::unordered_map<uint64_t, uint32_t> page_table;
   std::vector<std::vector<PageFrame>> mem_fyards;
   std::vector<std::vector<PageFrame>> mem_byards;
   std::vector<int> byard_avail;
+
+  std::vector<uint64_t> byard_candi;
 
   uint64_t iceberg_hash(uint64_t vpn, int hash_index) {
     return XXHash64::hash(&vpn, sizeof(vpn), hash_index); 
@@ -124,9 +127,8 @@ private:
   // Otherwise return the frame with oldest timestamp.
   // Returns <PageFrame*, CPFN, backyard index>
   std::tuple<PageFrame*, uint32_t, size_t> pick_from_backyards(uint64_t vpn) {
-    std::vector<uint64_t> byard_candi;
     for (int i = 0; i < byard_candi_num; i++) {
-      byard_candi.push_back(iceberg_hash(vpn, i + 1) % yard_num);
+      byard_candi[i] = iceberg_hash(vpn, i + 1) % yard_num;
     }
     int max_avail_candi_index = -1;
     int max_avail_bucket_size = 0;
@@ -173,9 +175,8 @@ private:
       return &mem_fyards[idx][cpfn];
     }
     else {
-      std::vector<uint64_t> byard_candi;
       for (int i = 0; i < byard_candi_num; i++) {
-        byard_candi.push_back(iceberg_hash(vpn, i + 1) % yard_num);
+        byard_candi[i] = iceberg_hash(vpn, i + 1) % yard_num;
       }
       int candi_index = (cpfn - fyard_size) / byard_size;
       int byard_offset = (cpfn - fyard_size) % byard_size;
