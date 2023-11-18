@@ -14,13 +14,18 @@ public:
   }
 
   void access(uint64_t addr, char rw) override {
+    time_tick += 1;
+    stats.total_mem_access += 1;
+
     uint64_t vpn = get_page_number(addr);
     vpn_set.insert(vpn);
 
     auto find_res = page_table.find(vpn);
 
     if (find_res != page_table.end()) {
-      lru_queue.erase(find_res->second);
+      // move this page to the end (most recent used position) of the list.
+      lru_queue.splice(lru_queue.end(), lru_queue, find_res->second);
+      lru_queue.back().timestamp = time_tick;
     }
     else {
       stats.num_page_fault += 1;
@@ -28,19 +33,22 @@ public:
       if (page_table.size() >= num_frames) {
         stats.num_swap_out += 1;
 
-        page_table.erase(lru_queue.front());
+        PageFrame& victim = lru_queue.front();
+        stats.total_age_of_swapped_out_pages += time_tick - victim.timestamp;
+        page_table.erase(victim.vpn);
+
         lru_queue.pop_front();
       }
+
+      lru_queue.emplace_back(vpn, time_tick, false);
     }
 
-    lru_queue.push_back(vpn);
     page_table[vpn] = --lru_queue.end();
-
-    stats.total_mem_access += 1;
   }
 
 private:
-  std::list<uint64_t> lru_queue;
-  std::unordered_map<uint64_t, std::list<uint64_t>::iterator> page_table;
+  std::list<PageFrame> lru_queue;
+  std::unordered_map<uint64_t, decltype(lru_queue)::iterator> page_table;
   uint64_t num_frames;
+  uint64_t time_tick {0};
 };
