@@ -37,10 +37,10 @@ KNOB<string> KnobOutputFileName(KNOB_MODE_WRITEONCE, "pintool", "o", "pin-sim-lo
 KNOB<string> KnobSimulatorSel(KNOB_MODE_WRITEONCE, "pintool", "s", "",
                       "which simulator to use (ice, con, uni-static, uni-dyn, uni-dyn-ind)");
 
-KNOB<double> KnobMemSizeMB(KNOB_MODE_WRITEONCE, "pintool", "m", "128.0",
+KNOB<double> KnobMemSizeMB(KNOB_MODE_WRITEONCE, "pintool", "m", "1024.0",
                       "memory size in mb, can be a decimal");
 
-KNOB<int> KnobWayCount(KNOB_MODE_WRITEONCE, "pintool", "w", "32",
+KNOB<int> KnobWayCount(KNOB_MODE_WRITEONCE, "pintool", "w", "128",
                       "for universal hashing: number of ways(banks)");
 
 KNOB<int> KnobFrontyardSize(KNOB_MODE_WRITEONCE, "pintool", "f", "56",
