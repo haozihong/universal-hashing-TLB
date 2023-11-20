@@ -2,7 +2,9 @@
 #include <memory>
 #include <fstream>
 #include <iostream>
+#include <locale>
 #include <stdio.h>
+#include <string>
 #include <unordered_set>
 
 #include "../iceberg_simulator.h"
@@ -17,15 +19,22 @@ using std::string;
 using std::unique_ptr;
 using std::make_unique;
 
-FILE *output = nullptr;
-
-static unique_ptr<VmSimulator> simulator;
-
 static std::unordered_set<string> sim_options {
   "ice", "con", "uni-static", "uni-dyn", "uni-dyn-ind"
 };
 
- static uint64_t access_cnt = 0;
+struct thousands_sep_with_comma : std::numpunct<char> {
+  char do_thousands_sep() const override { return ','; }
+  std::string do_grouping() const override { return "\03"; }
+};
+
+
+std::ofstream outFile;
+
+static unique_ptr<VmSimulator> simulator;
+
+static uint64_t access_cnt = 0;
+static uint64_t output_interval = 0;
 
 /* ===================================================================== */
 // Command line switches
@@ -33,6 +42,12 @@ static std::unordered_set<string> sim_options {
 
 KNOB<string> KnobOutputFileName(KNOB_MODE_WRITEONCE, "pintool", "o", "pin-sim-log.txt",
                       "output file name");
+
+KNOB<uint64_t> KnobOutputInterval(KNOB_MODE_WRITEONCE, "pintool", "intvl", "0",
+                                  "output satistics every X instructions. Set to 0 to disable");
+
+KNOB<BOOL> KnobThousSpearator(KNOB_MODE_WRITEONCE, "pintool", "sep", "0",
+                              "output with thousands separators");
 
 KNOB<string> KnobSimulatorSel(KNOB_MODE_WRITEONCE, "pintool", "s", "",
                       "which simulator to use (ice, con, uni-static, uni-dyn, uni-dyn-ind)");
@@ -72,8 +87,8 @@ inline void access(VOID *addr, char rw) {
   simulator->access((uint64_t)addr, rw);
 
   access_cnt += 1;
-  if (access_cnt % 100000000 == 0) {
-    simulator->get_stats().fprint(output);
+  if (output_interval > 0 && access_cnt % output_interval == 0) {
+    outFile << simulator->get_stats();
   }
 }
 
@@ -95,7 +110,7 @@ VOID RecordMemWrite(VOID *ip, VOID *addr) {
 // Is called for every instruction and instruments reads and writes
 VOID Instruction(INS ins, VOID *v) {
   // Insert a call to printip before every instruction, and pass it the IP
-  INS_InsertPredicatedCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordInst, IARG_INST_PTR, IARG_END);
+  INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordInst, IARG_INST_PTR, IARG_END);
 
   // Instruments memory accesses using a predicated call, i.e.
   // the instrumentation is called iff the instruction will actually be executed.
@@ -128,7 +143,8 @@ VOID Instruction(INS ins, VOID *v) {
  *                              PIN_AddFiniFunction function call
  */
 VOID Fini(INT32 code, VOID *v) {
-  simulator->get_stats().fprint(output);
+  outFile << simulator->get_stats();
+  outFile << "#eof" << endl;
 }
 
 /*!
@@ -141,10 +157,16 @@ int main(int argc, char *argv[]) {
   if (PIN_Init(argc, argv))
     return Usage();
 
-  output = fopen(KnobOutputFileName.Value().c_str(), "w");
-  if (output == nullptr) {
-    fprintf(stderr, "cannot open the output file.\n");
+  outFile.open(KnobOutputFileName.Value().c_str());
+  if (outFile.fail()) {
+    cerr << "cannot open the output file.\n";
     exit(EXIT_FAILURE);
+  }
+
+  output_interval = KnobOutputInterval.Value();
+
+  if (KnobThousSpearator.Value()) {
+    outFile.imbue(std::locale(cout.getloc(), new thousands_sep_with_comma));
   }
 
   string sim_option = KnobSimulatorSel.Value();
