@@ -67,10 +67,10 @@ public:
     else if (sim_mode == M_DYNAMIC_ONE_HASH_WITH_TABLE) {
       indexer = &UniversalHashingSimulator::get_index_in_bank_with_table;
 
-      std::mt19937 generator(std::random_device{}());
+      std::mt19937 generator(1u);
       std::uniform_int_distribution<int> distribution(INT_MIN, INT_MAX);
 
-      offset_table.resize(32);
+      offset_table.resize(1 << offset_table_size_bit);
       for (auto& row : offset_table) {
         row.resize(bank_count);
         for (int i = 0; i < bank_count; i++) {
@@ -173,7 +173,7 @@ private:
   }
 
   uint32_t get_index_in_bank_with_table(uint64_t vpn, uint64_t vpn_hashed, int bank_index) {
-    std::vector<int>& table_row = offset_table[vpn_hashed >> (64 - 5)];
+    std::vector<int>& table_row = offset_table[vpn_hashed >> (64 - offset_table_size_bit)];
     uint64_t idx = (vpn_hashed + table_row[bank_index]) % (uint64_t)frame_per_bank;
     return idx;
   }
@@ -196,4 +196,6 @@ private:
 
   // for table-based secondary hash
   std::vector<std::vector<int>> offset_table;
+  int offset_table_size_bit {5};
+
 };
