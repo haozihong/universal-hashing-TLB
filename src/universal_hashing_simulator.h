@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <random>
 
 #define XXH_STATIC_LINKING_ONLY // should keep this marco for xxhash
 #define XXH_IMPLEMENTATION      // should keep this marco for xxhash
@@ -19,6 +20,7 @@ enum Mode {
   M_STATIC,
   M_DYNAMIC_INDIE_HASH,
   M_DYNAMIC_ONE_HASH,
+  M_DYNAMIC_ONE_HASH_WITH_TABLE,
 };
 
 // function pointer to the function that is used to hash the VPN
@@ -28,6 +30,7 @@ inline static std::unordered_map<std::string, Mode> options_map {
   { "uni-static", M_STATIC },
   { "uni-dyn", M_DYNAMIC_ONE_HASH},
   { "uni-dyn-ind", M_DYNAMIC_INDIE_HASH },
+  { "uni-dyn-tbl", M_DYNAMIC_ONE_HASH_WITH_TABLE },
 };
 
 public:
@@ -61,6 +64,20 @@ public:
     else if (sim_mode == M_DYNAMIC_ONE_HASH) {
       indexer = &UniversalHashingSimulator::get_index_in_bank_dynamic;
     }
+    else if (sim_mode == M_DYNAMIC_ONE_HASH_WITH_TABLE) {
+      indexer = &UniversalHashingSimulator::get_index_in_bank_with_table;
+
+      std::mt19937 generator(std::random_device{}());
+      std::uniform_int_distribution<int> distribution(INT_MIN, INT_MAX);
+
+      offset_table.resize(32);
+      for (auto& row : offset_table) {
+        row.resize(bank_count);
+        for (int i = 0; i < bank_count; i++) {
+          row[i] = distribution(generator);
+        }
+      }
+    }
   }
 
   void access(uint64_t addr, char rw) override {
@@ -71,7 +88,7 @@ public:
     vpn_set.insert(vpn);
 
     uint64_t vpn_hashed = 0;
-    if (sim_mode == M_DYNAMIC_ONE_HASH) {
+    if (sim_mode == M_DYNAMIC_ONE_HASH || sim_mode == M_DYNAMIC_ONE_HASH_WITH_TABLE) {
       vpn_hashed = XXH64(&vpn, sizeof(vpn), 0);
     }
 
@@ -155,6 +172,12 @@ private:
     return XXH64(&vpn_bank_mix, sizeof(vpn_bank_mix), 0) % (uint64_t)frame_per_bank;
   }
 
+  uint32_t get_index_in_bank_with_table(uint64_t vpn, uint64_t vpn_hashed, int bank_index) {
+    std::vector<int>& table_row = offset_table[vpn_hashed >> (64 - 5)];
+    uint64_t idx = (vpn_hashed + table_row[bank_index]) % (uint64_t)frame_per_bank;
+    return idx;
+  }
+
   uint32_t get_index_in_bank_dynamic_indie(uint64_t vpn, uint64_t vpn_hashed, int bank_index) {
     return XXH64(&vpn, sizeof(vpn), bank_index) % (uint64_t)frame_per_bank;
   }
@@ -170,4 +193,7 @@ private:
   Indexer indexer {nullptr};
 
   uint64_t time_tick {0};
+
+  // for table-based secondary hash
+  std::vector<std::vector<int>> offset_table;
 };
