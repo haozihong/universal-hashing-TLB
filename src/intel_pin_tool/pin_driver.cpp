@@ -189,6 +189,8 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
 
+  simulator->print_info(outFile);
+
   INS_AddInstrumentFunction(Instruction, 0);
   PIN_AddFiniFunction(Fini, 0);
 

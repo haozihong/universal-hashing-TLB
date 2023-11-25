@@ -11,6 +11,8 @@ class ConventionalVmSimulator : public VmSimulator {
 public:
   ConventionalVmSimulator(double mem_size_mb) {
     num_frames = mem_size_mb * 1024 / PAGE_SIZE_KB;
+
+    print_info();
   }
 
   void access(uint64_t addr, char rw) override {
@@ -44,6 +46,13 @@ public:
     }
 
     page_table[vpn] = --lru_queue.end();
+  }
+
+  virtual void print_info(std::ostream& os = std::cout) {
+    os << "Simulator: Conventional Simulator\n"
+       << "----------------"
+       << "\nnum_frames = " << num_frames
+       << "\n" << std::endl;
   }
 
 private:

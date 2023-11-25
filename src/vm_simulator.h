@@ -2,6 +2,7 @@
 
 #include "vm_stats.h"
 
+#include <iostream>
 #include <unordered_set>
 
 class VmSimulator {
@@ -12,6 +13,8 @@ public:
     stats.total_page_access = vpn_set.size();
     return stats;
   }
+
+  virtual void print_info(std::ostream& os) {}
 
   virtual ~VmSimulator() {};
 

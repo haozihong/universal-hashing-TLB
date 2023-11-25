@@ -22,6 +22,8 @@ public:
         yard_num(mem_size_mb * 1024 / PAGE_SIZE_KB / (frontyard_size + backyard_size)),
         mem_fyards(yard_num), mem_byards(yard_num), byard_avail(yard_num, backyard_size),
         byard_candi(byard_candi_num) {
+    print_info();
+
     for (auto& yard : mem_fyards) {
       yard.resize(fyard_size);
     }
@@ -94,6 +96,16 @@ public:
     victim_frame->vpn = vpn;
     victim_frame->free = false;
     victim_frame->timestamp = time_tick;
+  }
+
+  virtual void print_info(std::ostream& os = std::cout) {
+    os << "Simulator: Iceberg Simulator\n"
+       << "----------------"
+       << "\nyard_num = " << yard_num 
+       << "\nfyard_size = " << fyard_size
+       << "\nbyard_size = " << byard_size 
+       << "\nbyard_candidate_num = " << byard_candi_num
+       << "\n" << std::endl;
   }
 
 private:

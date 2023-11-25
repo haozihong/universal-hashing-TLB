@@ -37,7 +37,7 @@ inline static std::unordered_map<std::string, Mode> options_map {
 
 public:
   UniversalHashingSimulator(double mem_size_mb, int bank_count, const std::string& mode)
-      : bank_count(bank_count) {
+      : bank_count(bank_count), sim_mode_name(mode) {
 
     if (options_map.count(mode) == 1) {
       sim_mode = options_map[mode];
@@ -45,11 +45,7 @@ public:
 
     frame_per_bank = mem_size_mb * 1024 / PAGE_SIZE_KB / bank_count;
 
-    printf("Universal Hashing Simulator initializing, \n");
-    printf("----------------\n");
-    printf("sim_mode = %s\n", mode.c_str());
-    printf("bank_count = %d\n", bank_count);
-    printf("frame_per_bank = %d\n", frame_per_bank);
+    print_info();
 
     memory.resize(bank_count);
     for (auto& bank : memory) {
@@ -165,6 +161,15 @@ public:
     }
   }
 
+  virtual void print_info(std::ostream& os = std::cout) {
+    os << "Simulator: Universal Hashing Simulator\n"
+       << "----------------"
+       << "\nsim_mode = " << sim_mode_name 
+       << "\nbank_count = " << bank_count
+       << "\nframe_per_bank = " << frame_per_bank
+       << "\n" << std::endl;
+  }
+
 private:
   uint32_t xorBits(uint64_t low64, uint64_t high64, int ord) {
     uint64_t low32;
@@ -234,6 +239,7 @@ private:
   std::unordered_map<uint64_t, uint32_t> page_table;
   std::vector<std::vector<PageFrame>> memory;
 
+  std::string sim_mode_name;
   Mode sim_mode {Mode::M_DYNAMIC_ONE_HASH};
   Indexer indexer {nullptr};
 
