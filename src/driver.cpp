@@ -13,7 +13,7 @@
 static void print_err_usage(const std::string& hint);
 
 static std::unordered_set<std::string> sim_options {
-  "ice", "con", "uni-static", "uni-dyn", "uni-dyn-ind", "uni-dyn-tbl"
+  "ice", "con", "uni-static", "uni-dyn", "uni-dyn-ind", "uni-dyn-tbl", "uni-dyn-xor"
 };
 
 int main(int argc, char *argv[]) {

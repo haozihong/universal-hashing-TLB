@@ -30,7 +30,7 @@ struct vm_stats {
     fprintf(file, "number of swap: %lu\n", num_swap_out);
     if (num_swap_out != 0) {
       fprintf(file, "first swap memory utilization: %lf\n", mem_util_pct);
-      fprintf(file, "total age of swapped out pages: %lu\n", total_age_of_swapped_out_pages);
+      // fprintf(file, "total age of swapped out pages: %lu\n", total_age_of_swapped_out_pages);
       fprintf(file, "average age of swapped out pages: %lu\n", total_age_of_swapped_out_pages / num_swap_out);
     }
     fprintf(file, "\n");
@@ -44,10 +44,10 @@ std::basic_ostream<char, Traits>& operator<<(std::basic_ostream<char, Traits>& o
     << "total memory access: " << m.total_mem_access
     << "\ntotal page access: " << m.total_page_access
     << "\nnumber of pagefaults: " << m.num_page_fault
-    << "\nnumber of swap:" << m.num_swap_out << "\n";
+    << "\nnumber of swap: " << m.num_swap_out << "\n";
   if (m.num_swap_out != 0) {
     os << "first swap memory utilization: " << m.mem_util_pct
-       << "\ntotal age of swapped out pages: " << m.total_age_of_swapped_out_pages
+       // << "\ntotal age of swapped out pages: " << m.total_age_of_swapped_out_pages
        << "\naverage age of swapped out pages: " << m.total_age_of_swapped_out_pages / m.num_swap_out << "\n";
   }
   os << std::endl;

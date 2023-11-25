@@ -21,6 +21,7 @@ enum Mode {
   M_DYNAMIC_INDIE_HASH,
   M_DYNAMIC_ONE_HASH,
   M_DYNAMIC_ONE_HASH_WITH_TABLE,
+  M_DYNAMIC_ONE_HASH_XOR
 };
 
 // function pointer to the function that is used to hash the VPN
@@ -31,6 +32,7 @@ inline static std::unordered_map<std::string, Mode> options_map {
   { "uni-dyn", M_DYNAMIC_ONE_HASH},
   { "uni-dyn-ind", M_DYNAMIC_INDIE_HASH },
   { "uni-dyn-tbl", M_DYNAMIC_ONE_HASH_WITH_TABLE },
+  { "uni-dyn-xor", M_DYNAMIC_ONE_HASH_XOR }
 };
 
 public:
@@ -63,6 +65,9 @@ public:
     }
     else if (sim_mode == M_DYNAMIC_ONE_HASH) {
       indexer = &UniversalHashingSimulator::get_index_in_bank_dynamic;
+    }
+    else if (sim_mode == M_DYNAMIC_ONE_HASH_XOR) {
+      indexer = &UniversalHashingSimulator::get_index_in_bank_dynamic_xor;
     }
     else if (sim_mode == M_DYNAMIC_ONE_HASH_WITH_TABLE) {
       indexer = &UniversalHashingSimulator::get_index_in_bank_with_table;
@@ -161,6 +166,41 @@ public:
   }
 
 private:
+  uint32_t xorBits(uint64_t low64, uint64_t high64, int ord) {
+    uint64_t low32;
+    uint64_t high32;
+    
+    /*
+    high64            low64
+    |________________|________________|
+    |________|________|
+    high32   low32
+    ^                   ^
+    |--------ord--------|
+    */
+    
+    if (0 <= ord && ord <= 32) {
+        high32 = low64 >> ord;
+        low32 = (low64 << (32 - ord)) | (high64 >> (32 + ord));
+    }
+    else if (33 <= ord && ord <= 64) {
+        high32 = (low64 >> ord) | (high64 << (64 - ord));
+        low32 = low64 >> (ord - 32);
+    }
+    else if (65 <= ord && ord <= 96) {
+        high32 = high64 >> (ord - 64);
+        low32 = (high64 << (96 - ord)) | (low64 >> (ord - 32));
+    }
+    else if (97 <= ord && ord <= 127) {
+        high32 = high64 >> (ord - 64) | (low64 << (128 - ord));
+        low32 = high64 >> (ord - 96);
+    } else {
+      high32 = 0;
+      low32 = 0;
+    }
+    
+    return (low32 ^ high32) & 0xFFFFFFFF;
+  }
 
   uint32_t get_index_in_bank_static(uint64_t vpn, uint64_t vpn_hashed, int bank_index) {
     return vpn % (uint64_t)frame_per_bank;
@@ -176,6 +216,11 @@ private:
     std::vector<int>& table_row = offset_table[vpn_hashed >> (64 - offset_table_size_bit)];
     uint64_t idx = (vpn_hashed + table_row[bank_index]) % (uint64_t)frame_per_bank;
     return idx;
+  }
+
+  uint32_t get_index_in_bank_dynamic_xor(uint64_t vpn, uint64_t vpn_hashed, int bank_index) {
+    XXH128_hash_t res = XXH128(&vpn, sizeof(vpn), 0);
+    return xorBits(res.low64, res.high64, bank_index) % (uint64_t)frame_per_bank;
   }
 
   uint32_t get_index_in_bank_dynamic_indie(uint64_t vpn, uint64_t vpn_hashed, int bank_index) {

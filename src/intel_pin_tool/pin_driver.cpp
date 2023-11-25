@@ -20,7 +20,7 @@ using std::unique_ptr;
 using std::make_unique;
 
 static std::unordered_set<string> sim_options {
-  "ice", "con", "uni-static", "uni-dyn", "uni-dyn-ind", "uni-dyn-tbl"
+  "ice", "con", "uni-static", "uni-dyn", "uni-dyn-ind", "uni-dyn-tbl", "uni-dyn-xor"
 };
 
 struct thousands_sep_with_comma : std::numpunct<char> {
