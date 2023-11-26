@@ -174,16 +174,16 @@ private:
   uint32_t xorBits(uint64_t low64, uint64_t high64, int ord) {
     uint64_t low32;
     uint64_t high32;
-    
+
     /*
-    high64            low64
-    |________________|________________|
-    |________|________|
-    high32   low32
-    ^                   ^
-    |--------ord--------|
-    */
-    
+     *    high64            low64
+     *|________________|________________|
+     *     |________|________|
+     *       high32   low32
+     *              ^                   ^
+     *              |--------ord--------|
+     */
+
     if (0 <= ord && ord <= 32) {
         high32 = low64 >> ord;
         low32 = (low64 << (32 - ord)) | (high64 >> (32 + ord));
