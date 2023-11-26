@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string>
 #include <unordered_set>
+#include <map>
 
 #include "../iceberg_simulator.h"
 #include "../universal_hashing_simulator.h"
@@ -64,6 +65,9 @@ KNOB<int> KnobFrontyardSize(KNOB_MODE_WRITEONCE, "pintool", "f", "56",
 KNOB<int> KnobBackyardSize(KNOB_MODE_WRITEONCE, "pintool", "b", "8",
                       "for iceberg hashing: backyard size");
 
+KNOB<BOOL> KnobHeatMap(KNOB_MODE_WRITEONCE, "pintool", "hmap", "1",
+                      "enable virtual address heatmap or not");
+
 /* ===================================================================== */
 // Utilities
 /* ===================================================================== */
@@ -83,6 +87,8 @@ INT32 Usage() {
 // Instrumentation callbacks
 /* ===================================================================== */
 
+static std::map<uint64_t, uint32_t> heatmap;
+
 inline void access(VOID *addr, char rw) {
   simulator->access((uint64_t)addr, rw);
 
@@ -100,11 +106,13 @@ VOID RecordInst(VOID *addr) {
 // Print a memory read record
 VOID RecordMemRead(VOID *ip, VOID *addr) {
   access(addr, 'r');
+  heatmap[(uint64_t)addr] += 1;
 }
 
 // Print a memory write record
 VOID RecordMemWrite(VOID *ip, VOID *addr) {
   access(addr, 'w');
+  heatmap[(uint64_t)addr] += 1;
 }
 
 // Is called for every instruction and instruments reads and writes
@@ -144,6 +152,12 @@ VOID Instruction(INS ins, VOID *v) {
  */
 VOID Fini(INT32 code, VOID *v) {
   outFile << simulator->get_stats();
+  outFile << endl;
+
+  for (auto iter = heatmap.begin(); iter != heatmap.end(); iter++) {
+    outFile << iter->first << ":" << iter->second << endl;
+  }
+
   outFile << "#eof" << endl;
 }
 
