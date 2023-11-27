@@ -110,7 +110,7 @@ VOID RecordMemWrite(VOID *ip, VOID *addr) {
 // Is called for every instruction and instruments reads and writes
 VOID Instruction(INS ins, VOID *v) {
   // Insert a call to printip before every instruction, and pass it the IP
-  INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordInst, IARG_INST_PTR, IARG_END);
+  // INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)RecordInst, IARG_INST_PTR, IARG_END);
 
   // Instruments memory accesses using a predicated call, i.e.
   // the instrumentation is called iff the instruction will actually be executed.
