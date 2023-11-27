@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <string>
 #include <unordered_set>
-#include <map>
+#include <unordered_map>
 
 #include "../iceberg_simulator.h"
 #include "../universal_hashing_simulator.h"
@@ -87,7 +87,7 @@ INT32 Usage() {
 // Instrumentation callbacks
 /* ===================================================================== */
 
-static std::map<uint64_t, uint32_t> heatmap;
+static std::unordered_map<uint64_t, uint32_t> heatmap;
 
 inline void access(VOID *addr, char rw) {
   simulator->access((uint64_t)addr, rw);
@@ -106,13 +106,13 @@ VOID RecordInst(VOID *addr) {
 // Print a memory read record
 VOID RecordMemRead(VOID *ip, VOID *addr) {
   access(addr, 'r');
-  heatmap[(uint64_t)addr] += 1;
+  heatmap[(uint64_t)addr >> 12] += 1;
 }
 
 // Print a memory write record
 VOID RecordMemWrite(VOID *ip, VOID *addr) {
   access(addr, 'w');
-  heatmap[(uint64_t)addr] += 1;
+  heatmap[(uint64_t)addr >> 12] += 1;
 }
 
 // Is called for every instruction and instruments reads and writes
