@@ -161,7 +161,7 @@ public:
     }
   }
 
-  virtual void print_info(std::ostream& os = std::cout) {
+  virtual void print_info(std::ostream& os = std::cout) override {
     os << "Simulator: Universal Hashing Simulator\n"
        << "----------------"
        << "\nsim_mode = " << sim_mode_name 

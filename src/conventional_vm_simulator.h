@@ -48,7 +48,7 @@ public:
     page_table[vpn] = --lru_queue.end();
   }
 
-  virtual void print_info(std::ostream& os = std::cout) {
+  virtual void print_info(std::ostream& os = std::cout) override {
     os << "Simulator: Conventional Simulator\n"
        << "----------------"
        << "\nnum_frames = " << num_frames

@@ -14,7 +14,7 @@ public:
     return stats;
   }
 
-  virtual void print_info(std::ostream& os) {}
+  virtual void print_info(std::ostream& os = std::cout) {}
 
   virtual ~VmSimulator() {};
 

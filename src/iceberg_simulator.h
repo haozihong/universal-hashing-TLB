@@ -98,7 +98,7 @@ public:
     victim_frame->timestamp = time_tick;
   }
 
-  virtual void print_info(std::ostream& os = std::cout) {
+  virtual void print_info(std::ostream& os = std::cout) override {
     os << "Simulator: Iceberg Simulator\n"
        << "----------------"
        << "\nyard_num = " << yard_num 
