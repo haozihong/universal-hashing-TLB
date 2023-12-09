@@ -1,3 +1,7 @@
+### The code in this directory is no longer maintained
+
+We found it very time-consuming to get the trace file first and then do the simulation. See `src/intel_pin_tool`.
+
 ### Setup
 
 Add pin's directory to PATH.
