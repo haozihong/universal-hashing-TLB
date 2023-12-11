@@ -92,6 +92,30 @@ def args_set_XSBench_512MB():
             args_set.append(sim_args(sim_type, dir_workload + workload, path_out, pin_args, workload_args))
     return args_set
 
+def args_set_XSBench_1GB():
+    workload = 'XSBench/XSBench'
+    pin_args = {'intvl': 100_000_000, 'sep': 1, 'm': 1024}
+    p = 500_000
+    args_set = []
+    for g in (1840, 2250, 2660, 3070):
+        for sim_type in sim_types:
+            path_out = f'{dir_out}exp_{os.path.basename(workload)}_g{g}_p{p}_{pin_args["m"]}_{sim_type}.out'
+            workload_args = ['-t', '1', '-g', f'{g}', '-p', f'{p}']
+            args_set.append(sim_args(sim_type, dir_workload + workload, path_out, pin_args, workload_args))
+    return args_set
+
+def args_set_XSBench_4GB():
+    workload = 'XSBench/XSBench'
+    pin_args = {'intvl': 100_000_000, 'sep': 1, 'm': 4096}
+    p = 500_000
+    args_set = []
+    for g in (7370, 9010, 10650, 12290):
+        for sim_type in sim_types:
+            path_out = f'{dir_out}exp_{os.path.basename(workload)}_g{g}_p{p}_{pin_args["m"]}_{sim_type}.out'
+            workload_args = ['-t', '1', '-g', f'{g}', '-p', f'{p}']
+            args_set.append(sim_args(sim_type, dir_workload + workload, path_out, pin_args, workload_args))
+    return args_set
+
 def args_set_gups_2GB():
     workload = 'gups'
     workload_size = 2
@@ -142,6 +166,8 @@ expt_profiles = {
     'BTree_4GB': args_set_BTree_4GB,
     'XSBench_128MB': args_set_XSBench_128MB,
     'XSBench_512MB': args_set_XSBench_512MB,
+    'XSBench_1GB': args_set_XSBench_1GB,
+    'XSBench_4GB': args_set_XSBench_4GB,
     'gups_2GB': args_set_gups_2GB,
     'gups_4GB': args_set_gups_4GB
 }
